@@ -19,4 +19,11 @@ impl Gameboy {
     pub fn load_rom(&mut self, file: std::fs::File) {
         self.bus.load_rom(file);
     }
+
+    pub fn run_frame(&mut self) {
+        loop {
+            self.cpu.run_instruction(&mut self.bus);
+            println!("{:?}", self.cpu);
+        }
+    }
 }

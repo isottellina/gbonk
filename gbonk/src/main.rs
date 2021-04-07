@@ -29,7 +29,7 @@ fn main() -> std::io::Result<()> {
     gameboy.load_bios(bootrom);
     gameboy.load_rom(rom);
 
-    println!("{:?}", gameboy);
+    gameboy.run_frame();
 
     Ok(())
 }
