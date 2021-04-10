@@ -23,6 +23,7 @@ impl Gameboy {
     pub fn run_frame(&mut self) {
         loop {
             self.cpu.run_instruction(&mut self.bus);
+            self.bus.spend();
             println!("{:?}", self.cpu);
         }
     }
