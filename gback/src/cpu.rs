@@ -17,6 +17,8 @@ pub struct CPU {
 	sub: bool,
 	halfcarry: bool,
 	carry: bool,
+
+	ime: bool,
 }
 
 impl CPU {
@@ -74,12 +76,12 @@ impl CPU {
 	}
 
 	// Memory-related functions
-	fn read_u8(&mut self, bus: &mut Bus, addr: u16) -> u8 {
+	fn read_u8(&self, bus: &mut Bus, addr: u16) -> u8 {
 		bus.delay(1);
 		bus.read_u8(addr)
 	}
 
-	fn read_u16(&mut self, bus: &mut Bus, addr: u16) -> u16 {
+	fn read_u16(&self, bus: &mut Bus, addr: u16) -> u16 {
 		self.read_u8(bus, addr) as u16 |
 		(self.read_u8(bus, addr + 1) as u16) << 8
 	}
@@ -119,6 +121,11 @@ impl CPU {
 		self.write_u8(bus, self.sp, value as u8);
 	}
 
+	fn read_hl(&self, bus: &mut Bus) -> u8 {
+		let hl = self.hl();
+		self.read_u8(bus, hl)
+	}
+
 	fn write_hl(&self, bus: &mut Bus, value: u8) {
 		let hl = self.hl();
 		
@@ -150,11 +157,33 @@ impl CPU {
 
 	fn ret(&mut self, bus: &mut Bus) {
 		let pc = self.pop(bus);
-		println!("{:04x}", pc);
 		self.set_pc(bus, pc);
 	}
 
 	// Arithmetic functions
+	fn add_u8(&mut self, value: u8) {
+		let a = self.a as u16;
+		let v = value as u16;
+
+		let res = a + v;
+
+		self.zero = (res & 0xff) == 0;
+		self.sub = false;
+		self.halfcarry = (a ^ v ^ res) & 0x10 == 0x10;
+		self.carry = (res & 0x100) == 0x100;
+
+		self.a = res as u8;
+	}
+
+	fn sub_u8(&mut self, value: u8) {
+		self.zero = self.a == value;
+		self.sub = true;
+		self.halfcarry = (self.a & 0xf) < (value & 0xf);
+		self.carry = self.a < value;
+
+		self.a = self.a.wrapping_sub(value);
+	}
+
 	fn cp_u8(&mut self, value: u8) {
 		self.zero = self.a == value;
 		self.sub = true;
@@ -217,6 +246,7 @@ impl CPU {
 		let instr = self.next_u8(bus);
 
 		match instr {
+			0x00 => {}
 			0x04 => { self.b = self.inc_u8(self.b); }
 			0x05 => { self.b = self.dec_u8(self.b); }
 			0x06 => { self.b = self.next_u8(bus); }
@@ -225,8 +255,11 @@ impl CPU {
 			0x0e => { self.c = self.next_u8(bus); }
 			0x11 => { let de = self.next_u16(bus); self.set_de(de); }
 			0x13 => { let de = self.inc_u16(bus, self.de()); self.set_de(de); }
+			0x15 => { self.d = self.dec_u8(self.d); }
+			0x16 => { self.d = self.next_u8(bus); }
 			0x17 => { self.a = self.rl_u8(self.a); self.zero = false; }
 			0x18 => { self.jr(bus); }
+			0x1d => { self.e = self.dec_u8(self.e); }
 			0x1a => { let de = self.de(); self.a = self.read_u8(bus, de); }
 			0x1e => { self.e = self.next_u8(bus); }
 			0x20 => { let c = !self.zero; self.jr_cond(bus, c); }
@@ -238,6 +271,7 @@ impl CPU {
 				self.set_hl(hl.wrapping_add(1));
 			}
 			0x23 => { let hl = self.inc_u16(bus, self.hl()); self.set_hl(hl); }
+			0x24 => { self.h = self.inc_u8(self.h); }
 			0x28 => { let c = self.zero; self.jr_cond(bus, c); }
 			0x2e => { self.l = self.next_u8(bus); }
 			0x31 => { self.sp = self.next_u16(bus); }
@@ -253,9 +287,16 @@ impl CPU {
 			0x57 => { self.d = self.a; }
 			0x67 => { self.h = self.a; }
 			0x77 => { self.write_hl(bus, self.a); }
+			0x78 => { self.a = self.b; }
 			0x7b => { self.a = self.e; }
+			0x7c => { self.a = self.h; }
+			0x7d => { self.a = self.l; }
+			0x86 => { let value = self.read_hl(bus); self.add_u8(value); }
+			0x90 => { self.sub_u8(self.b); }
 			0xaf => { self.xor_u8(self.a); }
+			0xbe => { let value = self.read_hl(bus); self.cp_u8(value); }
 			0xc1 => { let bc = self.pop(bus); self.set_bc(bc); }
+			0xc3 => { let pc = self.next_u16(bus); self.set_pc(bus, pc); }
 			0xcb => { self.run_cb_instruction(bus); }
 			0xcd => { self.call(bus); }
 			0xc5 => { let bc = self.bc(); self.push(bus, bc); }
@@ -271,6 +312,7 @@ impl CPU {
 				self.a = self.read_u8(bus, addr);
 			}
 			0xf1 => { let af = self.pop(bus); self.set_af(af); }
+			0xf3 => { self.ime = false; }
 			0xfe => { let value = self.next_u8(bus); self.cp_u8(value); }
 			_ => unimplemented!("Instruction not implemented ({:02x})", instr)
 		}

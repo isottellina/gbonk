@@ -6,3 +6,7 @@ pub mod ppu;
 pub mod apu;
 
 pub use gameboy::Gameboy;
+
+pub trait Platform {
+	fn present_buffer(&mut self, buffer: &[u32]);
+}

@@ -1,6 +1,10 @@
+mod render;
+
 pub struct PPU {
 	vram: [u8; 0x2000],
+	pub buffer: Box<[u32; (160 * 144)]>,
 	mode: PPUMode,
+	frame_done: bool,
 	clock: u32,
 	ly: u8,
 
@@ -20,6 +24,9 @@ pub struct PPU {
 }
 
 impl PPU {
+	pub fn is_frame_done(&self) -> bool { self.frame_done }
+	pub fn ack_frame_done(&mut self) { self.frame_done = false; }
+
 	pub fn spend(&mut self, cycles: u32) {
 		if !self.enable {
 			return;
@@ -29,6 +36,7 @@ impl PPU {
 		match self.mode {
 			PPUMode::HBlank => {
 				if self.clock >= 456 {
+					self.render_line(self.ly);
 					self.increment_line();
 					self.clock -= 456;
 
@@ -45,6 +53,7 @@ impl PPU {
 					self.clock -= 456;
 
 					if self.ly == 0 {
+						self.frame_done = true;
 						self.mode = PPUMode::ReadingOAM;
 					}
 				}
@@ -55,7 +64,7 @@ impl PPU {
 				}
 			},
 			PPUMode::Drawing => {
-				if self.clock >= 230 {
+				if self.clock >= 310 {
 					self.mode = PPUMode::HBlank;
 				}
 			}
@@ -75,6 +84,8 @@ impl PPU {
 
 	pub fn read_io_register(&self, addr: u16) -> u8 {
 		match addr {
+			0xff42 => self.scy,
+			0xff43 => self.scx,
 			0xff44 => self.ly,
 			_ => unimplemented!(
 				"PPU I/O register unimplemented : {:04x}",
@@ -111,6 +122,8 @@ impl Default for PPU {
 	fn default() -> PPU {
 		PPU {
 			vram: [0; 0x2000],
+			buffer: Box::new([0; (160 * 144)]),
+			frame_done: false,
 			clock: 0,
 			mode: PPUMode::ReadingOAM,
 			ly: 0,
@@ -150,6 +163,17 @@ enum DmgColor {
 	LightGrey = 1,
 	DarkGrey = 2,
 	Black = 3,
+}
+
+impl DmgColor {
+    fn as_real(self) -> [u8; 4] {
+        match self {
+            DmgColor::White => [0, 224, 248, 208],
+            DmgColor::LightGrey => [0, 136, 192, 112],
+            DmgColor::DarkGrey => [0, 52, 104, 86],
+            DmgColor::Black => [0, 8, 24, 32],
+        }
+    }
 }
 
 impl From<u8> for DmgColor {

@@ -1,5 +1,6 @@
 use crate::bus::Bus;
 use crate::cpu::CPU;
+use crate::Platform;
 
 #[derive(Default, Debug)]
 pub struct Gameboy {
@@ -20,11 +21,13 @@ impl Gameboy {
         self.bus.load_rom(file);
     }
 
-    pub fn run_frame(&mut self) {
-        loop {
+    pub fn run_frame(&mut self, platform: &mut dyn Platform) {
+        while !self.bus.is_frame_done() {
             self.cpu.run_instruction(&mut self.bus);
             self.bus.spend();
-            println!("{:?}", self.cpu);
         }
+
+        platform.present_buffer(&self.bus.frame_buffer());
+        self.bus.ack_frame_done();
     }
 }
