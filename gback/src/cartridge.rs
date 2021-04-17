@@ -29,7 +29,15 @@ impl Cartridge {
         rom
     }
 
-    pub fn read_u8(&self, addr: u16) -> u8 {
+    pub fn read_rom_u8(&self, addr: u16) -> u8 {
         self.rom[addr as usize]
+    }
+
+    pub fn write_rom_u8(&mut self, _addr: u16, _value: u8) {
+        println!("Writing on non-existing MBC ({:04x}, {:02x})", _addr, _value);
+    }
+
+    pub fn write_ram_u8(&mut self, _addr: u16, _value: u8) {
+
     }
 }

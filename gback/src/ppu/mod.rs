@@ -2,11 +2,14 @@ mod render;
 
 pub struct PPU {
 	vram: [u8; 0x2000],
+	oam: [u8; 0xA0],
 	pub buffer: Box<[u32; (160 * 144)]>,
 	mode: PPUMode,
 	frame_done: bool,
 	clock: u32,
 	ly: u8,
+	wx: u8,
+	wy: u8,
 
 	// LCDC
 	enable: bool,
@@ -18,14 +21,35 @@ pub struct PPU {
 	obj_enable: bool,
 	bg_window_enable: bool,
 
+	// STAT
+	lyc: u8,
+	coincidence_irq: bool,
+	mode2_irq: bool,
+	mode1_irq: bool,
+	mode0_irq: bool,
+
 	scy: u8,
 	scx: u8,
 	bgp: [DmgColor; 4],
+	obp0: [DmgColor; 4],
+	obp1: [DmgColor; 4],
+
+	// Interruptions
+	vblank_irq: bool,
+	stat_irq: bool,
 }
 
 impl PPU {
 	pub fn is_frame_done(&self) -> bool { self.frame_done }
 	pub fn ack_frame_done(&mut self) { self.frame_done = false; }
+
+	pub fn has_vblank_irq(&self) -> bool { self.vblank_irq }
+	pub fn ack_vblank_irq(&mut self) { self.vblank_irq = false; }
+	pub fn set_vblank_irq(&mut self, value: bool) { self.vblank_irq = value; }
+
+	pub fn has_stat_irq(&self) -> bool { self.stat_irq }
+	pub fn ack_stat_irq(&mut self) { self.stat_irq = false; }
+	pub fn set_stat_irq(&mut self, value: bool) { self.stat_irq = value; }
 
 	pub fn spend(&mut self, cycles: u32) {
 		if !self.enable {
@@ -82,6 +106,16 @@ impl PPU {
 		self.vram[(addr as usize) - 0x8000] = value;
 	}
 
+	pub fn write_oam_u8(&mut self, addr: u16, value: u8) {
+		assert!(addr >= 0xFE00);
+
+		self.oam[(addr as usize) - 0xFE00] = value;
+	}
+
+	pub fn read_oam_u8(&mut self, addr: u16) -> u8 {
+		self.oam[(addr as usize) - 0xFE00]
+	}
+
 	pub fn read_io_register(&self, addr: u16) -> u8 {
 		match addr {
 			0xff42 => self.scy,
@@ -106,9 +140,20 @@ impl PPU {
 				self.obj_enable = (value & 0x02) != 0;
 				self.bg_window_enable = (value & 0x01) != 0;
 			},
+			0xff41 => {
+				self.mode0_irq = (value & 0x08) != 0;
+				self.mode1_irq = (value & 0x10) != 0;
+				self.mode2_irq = (value & 0x20) != 0;
+				self.coincidence_irq = (value & 0x40) != 0;
+			},
 			0xff42 => self.scy = value,
 			0xff43 => self.scx = value,
+			0xff45 => self.lyc = value,
 			0xff47 => self.bgp.set_register(value),
+			0xff48 => self.obp0.set_register(value),
+			0xff49 => self.obp1.set_register(value),
+			0xff4a => self.wy = value,
+			0xff4b => self.wx = value,
 			_ => unimplemented!(
 				"PPU I/O register unimplemented : {:04x}, {:02x}",
 				addr,
@@ -122,11 +167,14 @@ impl Default for PPU {
 	fn default() -> PPU {
 		PPU {
 			vram: [0; 0x2000],
+			oam: [0; 0xA0],
 			buffer: Box::new([0; (160 * 144)]),
 			frame_done: false,
 			clock: 0,
 			mode: PPUMode::ReadingOAM,
 			ly: 0,
+			wx: 0,
+			wy: 0,
 
 			// LCDC
 			enable: false,
@@ -138,9 +186,20 @@ impl Default for PPU {
 			obj_enable: false,
 			bg_window_enable: false,
 
+			// STAT
+			lyc: 0,
+			coincidence_irq: false,
+			mode2_irq: false,
+			mode1_irq: false,
+			mode0_irq: false,
+
 			scy: 0,
 			scx: 0,
 			bgp: [DmgColor::White; 4],
+			obp0: [DmgColor::White; 4],
+			obp1: [DmgColor::White; 4],
+			vblank_irq: false,
+			stat_irq: false
 		}
 	}
 }
