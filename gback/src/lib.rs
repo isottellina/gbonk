@@ -9,4 +9,5 @@ pub use gameboy::Gameboy;
 
 pub trait Platform {
 	fn present_buffer(&mut self, buffer: &[u32]);
+	fn process_events(&mut self);
 }

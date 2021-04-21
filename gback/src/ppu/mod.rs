@@ -66,6 +66,10 @@ impl PPU {
 
 					if self.ly == 144 {
 						self.mode = PPUMode::VBlank;
+						
+						if self.mode1_irq {
+							self.stat_irq = true;
+						}
 					} else {
 						self.mode = PPUMode::ReadingOAM;
 					}
@@ -79,6 +83,10 @@ impl PPU {
 					if self.ly == 0 {
 						self.frame_done = true;
 						self.mode = PPUMode::ReadingOAM;
+
+						if self.mode2_irq {
+							self.stat_irq = true;
+						}
 					}
 				}
 			},
@@ -90,6 +98,10 @@ impl PPU {
 			PPUMode::Drawing => {
 				if self.clock >= 310 {
 					self.mode = PPUMode::HBlank;
+
+					if self.mode0_irq {
+						self.stat_irq = true;
+					}
 				}
 			}
 		}
@@ -98,6 +110,10 @@ impl PPU {
 
 	fn increment_line(&mut self) {
 		self.ly = (self.ly + 1) % 155;
+
+		if self.coincidence_irq && self.ly == self.lyc {
+			self.stat_irq = true;
+		}
 	}
 
 	pub fn write_vram_u8(&mut self, addr: u16, value: u8) {
@@ -118,6 +134,14 @@ impl PPU {
 
 	pub fn read_io_register(&self, addr: u16) -> u8 {
 		match addr {
+			0xff40 => (self.enable as u8) << 7 |
+				(self.window_map as u8) << 6 |
+				(self.window_enable as u8) << 5 |
+				(self.tile_data as u8) << 4 |
+				(self.bg_map as u8) << 3 |
+				(self.obj_size as u8) << 2 |
+				(self.obj_enable as u8) << 1 |
+				(self.bg_window_enable as u8),
 			0xff42 => self.scy,
 			0xff43 => self.scx,
 			0xff44 => self.ly,

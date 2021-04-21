@@ -30,4 +30,8 @@ impl Platform for MiniFBPlatform {
 			buffer,	160, 144
 		).unwrap();
 	}
+
+	fn process_events(&mut self) {
+		self.window.update();
+	}
 }

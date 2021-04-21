@@ -23,7 +23,7 @@ impl Gameboy {
 
     pub fn run_frame(&mut self, platform: &mut dyn Platform) {
         while !self.bus.is_frame_done() {
-            self.cpu.run_instruction(&mut self.bus);
+            self.cpu.step(&mut self.bus);
             self.bus.spend();
         }
 

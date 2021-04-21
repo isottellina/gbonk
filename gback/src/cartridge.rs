@@ -23,7 +23,7 @@ impl Cartridge {
         file.read_to_end(&mut rom).unwrap();
 
         if rom[0x147] != 0 {
-            unimplemented!("The emulator supports only ROM-ONLY games for now.");
+            // unimplemented!("The emulator supports only ROM-ONLY games for now.");
         }
 
         rom
