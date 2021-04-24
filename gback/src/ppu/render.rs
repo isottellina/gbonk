@@ -15,7 +15,10 @@ impl PPU {
 			let tile_color = self.get_pixel_from_tile(tile, real_x as u8, real_y as u8);
 			let real_color = self.bgp[tile_color as usize].as_real();
 
-			self.buffer[(line as usize * 160) + x as usize] = u32::from_be_bytes(real_color);
+			self.buffer[((line as usize * 160) + x as usize) * 4] = real_color[3];
+			self.buffer[((line as usize * 160) + x as usize) * 4 + 1] = real_color[2];
+			self.buffer[((line as usize * 160) + x as usize) * 4 + 2] = real_color[1];
+			self.buffer[((line as usize * 160) + x as usize) * 4 + 3] = real_color[0];
 		};
 	}
 

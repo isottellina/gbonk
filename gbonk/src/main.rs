@@ -1,5 +1,5 @@
 extern crate clap;
-extern crate minifb;
+extern crate sdl2;
 extern crate gback;
 
 mod platform;
@@ -28,12 +28,15 @@ fn main() -> std::io::Result<()> {
     let bootrom = File::open(bootrom_fn)?;
     let rom = File::open(rom_fn)?;
     
-    let mut platform = platform::MiniFBPlatform::new();
+    let mut platform = platform::SDLPlatform::new();
     let mut gameboy = Gameboy::new();
     gameboy.load_bios(bootrom);
     gameboy.load_rom(rom);
+    gameboy.running = true;
 
-    loop {
+    while gameboy.running {
         gameboy.run_frame(&mut platform);
     }
+
+    Ok(())
 }

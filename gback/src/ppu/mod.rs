@@ -3,7 +3,7 @@ mod render;
 pub struct PPU {
 	vram: [u8; 0x2000],
 	oam: [u8; 0xA0],
-	pub buffer: Box<[u32; (160 * 144)]>,
+	pub buffer: Box<[u8; (160 * 144 * 4)]>,
 	mode: PPUMode,
 	frame_done: bool,
 	clock: u32,
@@ -192,7 +192,7 @@ impl Default for PPU {
 		PPU {
 			vram: [0; 0x2000],
 			oam: [0; 0xA0],
-			buffer: Box::new([0; (160 * 144)]),
+			buffer: Box::new([0; (160 * 144 * 4)]),
 			frame_done: false,
 			clock: 0,
 			mode: PPUMode::ReadingOAM,

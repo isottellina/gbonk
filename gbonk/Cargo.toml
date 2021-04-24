@@ -8,5 +8,5 @@ edition = "2018"
 
 [dependencies]
 clap = "2.33.3"
-minifb = "0.19.3"
 gback = { path = "../gback" }
+sdl2 = "0.34.4"

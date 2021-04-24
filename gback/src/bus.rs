@@ -2,12 +2,14 @@ use std::io::Read;
 use crate::cartridge::Cartridge;
 use crate::ppu::PPU;
 use crate::apu::APU;
+use crate::joypad::Joypad;
 
 pub struct Bus {
 	bios: [u8; 0x100],
 	cart: Cartridge,
 	ppu: PPU,
 	apu: APU,
+	joypad: Joypad,
 	wram: [u8; 0x2000],
 	hram: [u8; 0x80],
 
@@ -27,7 +29,7 @@ pub struct Bus {
 impl Bus {
 	pub fn is_frame_done(&self) -> bool { self.ppu.is_frame_done() }
 	pub fn ack_frame_done(&mut self) { self.ppu.ack_frame_done(); }
-	pub fn frame_buffer(&self) -> [u32; 160 * 144] { *self.ppu.buffer }
+	pub fn frame_buffer(&self) -> [u8; 160 * 144 * 4] { *self.ppu.buffer }
 
 	pub fn has_irq(&self) -> Option<u16> {
 		if self.ppu.has_vblank_irq() && self.enable_vblank_irq {
@@ -67,8 +69,7 @@ impl Bus {
 			0xE000..=0xFDFF => self.wram[(addr & 0x1FFF) as usize],
 			0xFE00..=0xFE9F => self.ppu.read_oam_u8(addr),
 			0xFEA0..=0xFEFF => 0xFF,
-			// TODO: Joypad
-			0xFF00 => 0xFF,
+			0xFF00 => self.joypad.read(),
 			0xFF40..=0xFF4B => self.ppu.read_io_register(addr),
 			0xFF80..=0xFFFE => self.hram[(addr - 0xFF80) as usize],
 			0xFFFF => {
@@ -87,8 +88,7 @@ impl Bus {
 			0xC000..=0xDFFF => self.wram[(addr - 0xC000) as usize] = value,
 			0xFE00..=0xFE9F => self.ppu.write_oam_u8(addr, value),
 			0xFEA0..=0xFEFF => { },
-			// TODO: Joypad
-			0xFF00 => {},
+			0xFF00 => self.joypad.write(value),
 			0xFF01 => {},
 			0xFF02 => {},
 			// TODO: Timer registers
@@ -148,6 +148,7 @@ impl Default for Bus {
 			cart: Default::default(),
 			ppu: Default::default(),
 			apu: Default::default(),
+			joypad: Default::default(),
 			bios: [0; 0x100],
 			hram: [0; 0x80],
 			wram: [0; 0x2000],
